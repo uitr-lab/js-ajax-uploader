@@ -12,7 +12,10 @@ Add file drop listener to page and upload files to your upload handler ie: /your
 	    data:{
 	        shareName:"extra-data" //extra data to send to server 
 	    }
-	})).on('upload', (results) =>{
+	})).on('progress',(progress)=>{
+		
+		
+	}).on('upload', (results) =>{
 	    // update UI
 	});
 
