@@ -27,9 +27,42 @@ export class FileDropPageListener extends EventEmitter {
 	constructor() {
 		super();
 
+
+		var activeTarget=null;
+		var container=null;
+
+
 		document.body.ondragover = (ev) => {
 			ev.preventDefault();
 			console.log(ev);
+
+
+			var target=this.getTarget(ev.target);
+			
+
+			if(!target){
+
+				if(activeTarget){
+					activeTarget.classList.remove('drop-target');
+					activeTarget=null;
+				}
+				return;
+			}
+
+
+			container=target.getContainer(target);
+			if(container!==activeTarget){
+
+				if(activeTarget){
+					activeTarget.classList.remove('drop-target');
+				}
+
+				activeTarget=container;
+				activeTarget.classList.add('drop-target');
+			}
+			
+
+
 		};
 		document.body.ondragleave = (ev) => {
 			console.log(ev);
@@ -42,39 +75,12 @@ export class FileDropPageListener extends EventEmitter {
 				return item.getAsFile(); 
 			});
 
-
-			if (files.length > 0) {
-
-				var targets = (this._targets || []).filter((t)=>{
-					return t.contains(ev.target);
-				});
-
-				if (targets.length == 1) {
-					var callback = this._callbacks[this._targets.indexOf(targets[0])];
-					callback(files);
-					return;
-				}
+			this.uploadFiles(files, ev.target);
 
 
-				if (targets.length > 1) {
-
-
-					var containers=targets.map((t)=>{
-						t.getContainer(ev.target);
-					});
-
-					//TODO select the inner most container;
-					var bestContainer=(new DropTarget()).deepest(containers);
-					var index=containers.indexOf(bestContainer);
-
-					var callback = this._callbacks[this._targets.indexOf(targets[index])];
-					callback(files);
-					return;
-				}
-
-
-
-
+			if(activeTarget){
+				activeTarget.classList.remove('drop-target');
+				activeTarget=null;
 			}
 
 		};
@@ -94,6 +100,77 @@ export class FileDropPageListener extends EventEmitter {
 
 	}
 
+
+	getTarget(target){
+
+
+
+		var targets = (this._targets || []).filter((t)=>{
+			return t.contains(target);
+		});
+
+		if (targets.length == 1) {
+			return targets[0];
+		}
+
+
+		if (targets.length > 1) {
+
+
+			var containers=targets.map((t)=>{
+				return t.getContainer(target);
+			});
+
+			//TODO select the inner most container;
+			var bestContainer=(new DropTarget()).deepest(containers);
+			var index=containers.indexOf(bestContainer);
+
+			return targets[index];
+		}
+
+
+		return null;
+
+	}
+
+
+	uploadFiles(files, target){
+
+		var files=Array.prototype.slice.call(files, 0);
+
+		if (files.length > 0) {
+
+				var targets = (this._targets || []).filter((t)=>{
+					return t.contains(target);
+				});
+
+				if (targets.length == 1) {
+					var callback = this._callbacks[this._targets.indexOf(targets[0])];
+					callback(files);
+					return;
+				}
+
+
+				if (targets.length > 1) {
+
+
+					var containers=targets.map((t)=>{
+						return t.getContainer(target);
+					});
+
+					//TODO select the inner most container;
+					var bestContainer=(new DropTarget()).deepest(containers);
+					var index=containers.indexOf(bestContainer);
+
+					var callback = this._callbacks[this._targets.indexOf(targets[index])];
+					callback(files);
+					return;
+				}
+
+
+			}
+
+	}
 }
 
 export class FileDropTarget extends EventEmitter {
@@ -155,6 +232,14 @@ export class FileDropTarget extends EventEmitter {
 
 		return [this.elementOrSelector];
 	}	
+
+	uploadFiles(files, target){
+		FileDropTarget.FileDropPageListener.uploadFiles(files, target||document.body);
+	}
+
+	getContainer(targetEl){
+		return this._match;
+	}
 
 	contains(targetEl){
 
