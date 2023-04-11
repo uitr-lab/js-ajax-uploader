@@ -194,7 +194,15 @@ export class FileDropTarget extends EventEmitter {
 				const formData = new FormData();
 				formData.append("the_file", file);
 				if (this.options.data) {
-					var obj = JSON.parse(JSON.stringify(this.options.data));
+
+					var data=this.options.data;
+
+					if(typeof data=='function'){
+						data=data(this);
+					}
+
+					//remove references, ensure json compatible
+					var obj = JSON.parse(JSON.stringify(data));
 					Object.keys(obj).forEach((key) => {
 						formData.append(key, obj[key]);
 					});
