@@ -3,7 +3,7 @@
 
 
 
-Add file drop listener to page and upload files to your upload handler ie: /your/upload
+Add file drop listener to page and/or page elements and upload files to your upload handler ie: /your/upload
 
 ```js
 
@@ -20,3 +20,7 @@ Add file drop listener to page and upload files to your upload handler ie: /your
 	});
 
 ```
+
+
+ - Supports multiple drop handler targets on a single page
+ - Supports nested drop handler targets (ie folder/sub-folder structure)
