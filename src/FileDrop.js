@@ -72,10 +72,19 @@ export class FileDropPageListener extends EventEmitter {
 			var files = Array.prototype.slice.call(ev.dataTransfer.items, 0).filter((item) =>{
 				return item.kind == "file";
 			}).map((item)=>{
+ 
+				if(item.getAsFileSystemHandle){
+					return item.getAsFileSystemHandle();
+				}
+
+				// No support for uploading folders
 				return item.getAsFile(); 
 			});
 
+			
+			
 			this.uploadFiles(files, ev.target);
+			
 
 
 			if(activeTarget){
@@ -88,6 +97,100 @@ export class FileDropPageListener extends EventEmitter {
 
 	}
 
+	_resolveFiles(files){
+		return new Promise((resolve, reject)=>{
+
+			if(files[0] instanceof Promise){
+				Promise.all(files).then((fileHandles)=>{
+
+					var actualFiles=this._flattenHandles(fileHandles).then((actualFiles)=>{
+						if(actualFiles.length>0){
+							Promise.all(actualFiles.files||actualFiles).then(resolve).catch(reject);
+							return;
+						}
+					})
+
+					return;
+
+					
+
+				});
+
+				
+			}else{
+				resolve(files);
+			}
+
+
+
+		})
+	}
+
+	_flattenHandles(fileHandles, path){
+		var actualFiles=[];
+
+		if(fileHandles[0] instanceof Promise){
+			return Promise.all(fileHandles).then((fileHandles)=>{
+				return this._flattenHandles(fileHandles, path);
+			});
+		}
+
+		return Promise.all(fileHandles.map((handle, i)=>{
+			if(handle.kind=="file"){
+				actualFiles.push(handle.getFile().then((file)=>{
+
+				
+					return {
+						file:file,
+						path:path||"/"
+					};
+					
+				}));
+				return Promise.resolve(true);
+			}
+
+			if(handle.kind=="directory"){
+
+			
+				
+				return this._entries(handle).then((entries)=>{
+
+					return this._flattenHandles(entries, (path||"")+"/"+handle.name).then((handles)=>{
+						actualFiles=actualFiles.concat(handles);
+						return handles;
+					})
+				});
+			}
+
+		})).then(()=>{
+			return actualFiles;
+		});
+
+	}
+
+	_entries(folderHandle){
+
+		var interator=folderHandle.entries();
+		var items=[];
+		var _iterate=(entry)=>{
+
+			return entry.then((item)=>{
+				if(item.done){
+					return true;
+				}
+				items.push(item.value[1]);
+				return _iterate(interator.next());
+			});
+
+		}
+
+		return _iterate(interator.next()).then(()=>{
+			return items;
+		})
+		
+		
+		
+	}
 
 	addTarget(item, callback) {
 
@@ -140,13 +243,16 @@ export class FileDropPageListener extends EventEmitter {
 
 		if (files.length > 0) {
 
+			this._resolveFiles(files).then((resolvedFiles)=>{
+			
+
 				var targets = (this._targets || []).filter((t)=>{
 					return t.contains(target);
 				});
 
 				if (targets.length == 1) {
 					var callback = this._callbacks[this._targets.indexOf(targets[0])];
-					callback(files);
+					callback(resolvedFiles);
 					return;
 				}
 
@@ -163,12 +269,13 @@ export class FileDropPageListener extends EventEmitter {
 					var index=containers.indexOf(bestContainer);
 
 					var callback = this._callbacks[this._targets.indexOf(targets[index])];
-					callback(files);
+					callback(resolvedFiles);
 					return;
 				}
+			});
 
 
-			}
+		}
 
 	}
 }
@@ -190,15 +297,15 @@ export class FileDropTarget extends EventEmitter {
 
 
 
-			Promise.all(files.map((file) => {
+			Promise.all(files.map((fileInfo) => {
 				const formData = new FormData();
-				formData.append("the_file", file);
+				formData.append("the_file", fileInfo.file||fileInfo);
 				if (this.options.data) {
 
 					var data=this.options.data;
 
 					if(typeof data=='function'){
-						data=data(this);
+						data=data(this, fileInfo);
 					}
 
 					//remove references, ensure json compatible
