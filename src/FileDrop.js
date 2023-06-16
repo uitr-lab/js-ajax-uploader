@@ -296,7 +296,7 @@ export class FileDropTarget extends EventEmitter {
 		FileDropTarget.FileDropPageListener.addTarget(this, (files) => {
 
 
-
+			this.emit('start', files);
 			Promise.all(files.map((fileInfo) => {
 				const formData = new FormData();
 				formData.append("the_file", fileInfo.file||fileInfo);
@@ -325,6 +325,7 @@ export class FileDropTarget extends EventEmitter {
 					.then((response) => response.json())
 					.then((result) => {
 						console.log("Success:", result);
+						return result;
 					})
 					.catch((error) => {
 						console.error(error);
